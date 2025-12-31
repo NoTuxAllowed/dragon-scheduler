@@ -30,18 +30,16 @@ jobs:
         DOCKER_CLI_EXPERIMENTAL: enabled
       run: |
         # Convert repository name to lowercase
-        REPO=$(echo "${{ github.repository }}" | tr '[:upper:]' '[:lower:]')
+        REPO="${{ github.repository }}"
+        REPO="${REPO,,}"
         IMAGE_BASE=ghcr.io/$REPO/${{ matrix.target }}
         
-        echo "Building for amd64..."
         docker build --platform linux/amd64 --target ${{ matrix.target }} -t ${IMAGE_BASE}:latest-amd64 .
         docker push ${IMAGE_BASE}:latest-amd64
         
-        echo "Building for arm64..."
         docker build --platform linux/arm64 --target ${{ matrix.target }} -t ${IMAGE_BASE}:latest-arm64 .
         docker push ${IMAGE_BASE}:latest-arm64
         
-        echo "Creating and pushing manifest..."
         docker manifest create ${IMAGE_BASE}:latest \
           ${IMAGE_BASE}:latest-amd64 \
           ${IMAGE_BASE}:latest-arm64

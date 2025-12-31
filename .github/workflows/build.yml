@@ -18,7 +18,7 @@ jobs:
     - name: Install dependencies
       run: go mod download
     - name: Verify Code Formatting
-      run: if [ -n "$(gofmt -l .)" ]; then echo "Go code is not formatted"; exit 1; fi
+      run: if [ -n "$(gofmt -l .)" ]; then exit 1; fi
     - name: Vet
       run: go vet ./...
     - name: Build
