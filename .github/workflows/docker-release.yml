@@ -1,0 +1,54 @@
+name: Docker Release
+
+on:
+  push:
+    tags: [ 'v*' ]
+  release:
+    types: [ "published" ]
+
+jobs:
+  build-and-push-release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      matrix:
+        target: [dragonctl, k8s-kubeadm-token-server, scheduler]
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+
+    - name: Log in to GitHub Container Registry
+      run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+
+    - name: Set up QEMU
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y qemu-user-static
+
+    - name: Build and Push ${{ matrix.target }}
+      env:
+        DOCKER_CLI_EXPERIMENTAL: enabled
+      run: |
+        # Convert repository name to lowercase
+        REPO=$(echo "${{ github.repository }}" | tr '[:upper:]' '[:lower:]')
+        IMAGE_BASE=ghcr.io/$REPO/${{ matrix.target }}
+        
+        # Determine version from tag
+        VERSION=${{ github.ref_name }}
+
+        echo "Building $IMAGE_BASE:$VERSION for amd64..."
+        docker build --platform linux/amd64 --target ${{ matrix.target }} -t ${IMAGE_BASE}:${VERSION}-amd64 .
+        docker push ${IMAGE_BASE}:${VERSION}-amd64
+
+        echo "Building $IMAGE_BASE:$VERSION for arm64..."
+        docker build --platform linux/arm64 --target ${{ matrix.target }} -t ${IMAGE_BASE}:${VERSION}-arm64 .
+        docker push ${IMAGE_BASE}:${VERSION}-arm64
+
+        echo "Creating and pushing manifest..."
+        docker manifest create ${IMAGE_BASE}:${VERSION} \
+          ${IMAGE_BASE}:${VERSION}-amd64 \
+          ${IMAGE_BASE}:${VERSION}-arm64
+        
+        docker manifest push ${IMAGE_BASE}:${VERSION}
